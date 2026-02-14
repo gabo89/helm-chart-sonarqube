@@ -284,13 +284,17 @@ emptyDir:
 jdbcOverwrite:
   enabled: true
   # The JDBC url of the external DB
-  #jdbcUrl: "jdbc:sqlserver://sonarqube1980.database.windows.net:1433;database=sonar-db;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;"
-  jdbcUrl: jdbc:postgresql://sonarqube-db-pg16.postgres.database.azure.com:5432/sonarqube?sslmode=require
+  jdbcUrl: "jdbc:sqlserver://sonarqube1980.database.windows.net:1433;database=sonar-db;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;"
+  #jdbcUrl: jdbc:postgresql://sonarqube-db-pg16.postgres.database.azure.com:5432/sonarqube?sslmode=require
   AzureIdentity: true
   AwsIdentity: false
   # The DB user that should be used for the JDBC connection
   jdbcUsername: "sonarqube-identity"
-  jdbcPassword: "sonarPass"
+  #for aws identity
+  AwsRegion: xxx
+  AwsHostname: xxx
+  AwsPort: xxxx
+
 
 # Additional labels to add to the pods:
 # podLabels:

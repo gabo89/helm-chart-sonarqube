@@ -9,4 +9,7 @@ data:
   SONAR_JDBC_URL: {{ .Values.jdbcOverwrite.jdbcUrl | trim | quote }}
   SONAR_JDBC_AZURE_IDENTITY: {{ .Values.jdbcOverwrite.AzureIdentity  | quote }}
   SONAR_JDBC_AWS_IDENTITY: {{ .Values.jdbcOverwrite.AwsIdentity  | quote }}
+  SONAR_JDBC_AWS_REGION: {{ .Values.jdbcOverwrite.AwsRegion  | quote }}
+  SONAR_JDBC_AWS_HOSTNAME: {{ .Values.jdbcOverwrite.AwsHostname  | quote }}
+  SONAR_JDBC_AWS_PORT:  {{ .Values.jdbcOverwrite.AwsPort  | quote }}
 {{- end }}
