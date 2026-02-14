@@ -7,4 +7,6 @@ metadata:
 data:
   SONAR_JDBC_USERNAME: {{ template "jdbc.username" . }}
   SONAR_JDBC_URL: {{ .Values.jdbcOverwrite.jdbcUrl | trim | quote }}
+  SONAR_JDBC_AZURE_IDENTITY: {{ .Values.jdbcOverwrite.AzureIdentity  | quote }}
+  SONAR_JDBC_AWS_IDENTITY: {{ .Values.jdbcOverwrite.AwsIdentity  | quote }}
 {{- end }}

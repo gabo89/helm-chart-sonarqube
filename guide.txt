@@ -1,0 +1,4 @@
+
+
+helm upgrade --install my-release --force --wait  --timeout 10m   -n sonarqube ./charts/sonarqube -f values.yaml  --namespace sonarqube --create-namespace
+

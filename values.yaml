@@ -1,0 +1,329 @@
+# Default values for SonarQube.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# (DEPRECATED) If the deployment Type is set to Deployment SonarQube is deployed as a replica set.
+# StatefulSet will be removed in a future release in favor of Deployment. Default to StatefulSet for backwards compatibility.
+deploymentType: "StatefulSet"
+
+# There should not be more than 1 SonarQube instance connected to the same database. Please set this value to 1 or 0 (in case you need to scale down programmatically).
+replicaCount: 1
+revisionHistoryLimit: 10
+deploymentStrategy:
+  type: Recreate
+
+
+OpenShift:
+  enabled: false
+  createSCC: false
+
+# Set the chart to use the latest released SonarQube Community Build
+community:
+  enabled: true
+  buildNumber: "26.2.0.119303"
+
+image:
+  repository: dockeragent89/local-sonarqube-app
+  tag: "26.2.5-managedidentity"
+  pullPolicy: IfNotPresent
+  # If using a private repository, the imagePullSecrets to use
+  # pullSecrets:
+  #   - name: my-repo-secret
+
+# Set security context for sonarqube pod.
+# The current section contains the default values set in a generic Kubernetes cluster. If you are using OpenShift, you should not set any specific fsGroup.
+securityContext:
+  fsGroup: 0
+
+# Set security context for sonarqube container.
+# The current section contains the default values set in a generic Kubernetes cluster. If you are using OpenShift, you should not set any specific UID or GID to be used for the execution.
+containerSecurityContext:
+  # Sonarqube dockerfile creates sonarqube user as UID and GID 0
+  # Those default are used to match pod security standard restricted as least privileged approach
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 0
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop: ["ALL"]
+#   readOnlyRootFilesystem: true
+
+# Settings to configure elasticsearch host requirements
+elasticsearch:
+  # (DEPRECATED) Use initSysctl.enabled instead
+  configureNode: false
+  bootstrapChecks: true
+
+service:
+  type: ClusterIP
+  externalPort: 9000
+  internalPort: 9000
+  labels:
+  annotations: {}
+httpProxySecret: ""
+httpProxy: ""
+httpsProxy: ""
+noProxy: ""
+
+networkPolicy:
+  enabled: false
+sonarWebContext: ""
+
+ingress-nginx:
+  enabled: false
+httproute:
+  enabled: false
+ingress:
+  enabled: false
+  # Used to create an Ingress record.
+  hosts:
+    - name: sonarqube.your-org.com
+  annotations: {}
+  tls: []
+# Affinity for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+affinity: {}
+
+# Tolerations for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+# taint a node with the following command to mark it as not schedulable for new pods
+# kubectl taint nodes <node> sonarqube=true:NoSchedule
+# The following statement will tolerate this taint and as such reverse a node for sonarqube
+tolerations: []
+#  - key: "sonarqube"
+#    operator: "Equal"
+#    value: "true"
+#    effect: "NoSchedule"
+
+# Node labels for pod assignment
+# Ref: https://kubernetes.io/docs/user-guide/node-selection/
+# add a label to a node with the following command
+# kubectl label node <node> sonarqube=true
+nodeSelector: {}
+#  sonarqube: "true"
+
+# hostAliases allows the modification of the hosts file inside a container
+hostAliases: []
+readinessProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - |
+        #!/bin/bash
+        # A Sonarqube container is considered ready if the status is UP, DB_MIGRATION_NEEDED or DB_MIGRATION_RUNNING
+        # status about migration are added to prevent the node to be kill while SonarQube is upgrading the database.
+        if wget --no-proxy -qO- http://localhost:{{ .Values.service.internalPort }}{{ .Values.readinessProbe.sonarWebContext | default (include "sonarqube.webcontext" .) }}api/system/status | grep -q -e '"status":"UP"' -e '"status":"DB_MIGRATION_NEEDED"' -e '"status":"DB_MIGRATION_RUNNING"'; then
+          exit 0
+        fi
+        exit 1
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 6
+  # Note that timeoutSeconds was not respected before Kubernetes 1.20 for exec probes
+  timeoutSeconds: 1
+  # If an ingress *path* other than the root (/) is defined, it should be reflected here
+  # A trailing "/" must be included
+  # deprecated please use sonarWebContext at the value top level
+  # sonarWebContext: /
+
+livenessProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - |
+        wget --no-proxy --quiet -O /dev/null --timeout={{ .Values.livenessProbe.timeoutSeconds }} --header="X-Sonar-Passcode: $SONAR_WEB_SYSTEMPASSCODE" "http://localhost:{{ .Values.service.internalPort }}{{ .Values.livenessProbe.sonarWebContext | default (include "sonarqube.webcontext" .) }}api/system/liveness"
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 6
+  # Note that timeoutSeconds was not respected before Kubernetes 1.20 for exec probes
+  timeoutSeconds: 1
+
+startupProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 24
+  # Note that timeoutSeconds was not respected before Kubernetes 1.20 for exec probes
+  timeoutSeconds: 1
+
+initContainers:
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 0
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop: ["ALL"]
+    readOnlyRootFilesystem: true
+  # We allow the init containers to have a separate resources declaration because
+  # the initContainer does not take as much resources.
+  resources: {}
+
+# Extra init containers to e.g. download required artifacts
+extraInitContainers: {}
+
+extraContainers: []
+extraVolumes: []
+extraVolumeMounts: []
+
+## Provide a secret containing one or more certificate files in the keys that will be added to cacerts
+## The cacerts file will be set via SONARQUBE_WEB_JVM_OPTS and SONAR_CE_JAVAOPTS
+##
+caCerts:
+  enabled: false
+  # image:
+  # secret: your-secret-name
+
+  # Optionally, you can store your certificate in a ConfigMap and use it as:
+  # configMap:
+  #   name: my-custom-cacerts-certificate
+  #   key: key
+  #   path: my-certificate.crt
+
+initSysctl:
+  enabled: true
+  vmMaxMapCount: 524288
+  fsFileMax: 131072
+  nofile: 131072
+  nproc: 8192
+  securityContext:
+    # Compatible with podSecurity standard privileged
+    privileged: true
+    runAsUser: 0
+    readOnlyRootFilesystem: true
+  # resources: {}
+
+# This should not be required anymore, used to chown/chmod folder created by faulty CSI driver that are not applying properly POSIX fsgroup.
+initFs:
+  enabled: true
+  # Compatible with podSecurity standard baseline.
+  securityContext:
+    privileged: false
+    runAsNonRoot: false
+    runAsUser: 0
+    runAsGroup: 0
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop: ["ALL"]
+      add: ["CHOWN"]
+    readOnlyRootFilesystem: true
+
+prometheusExporter:
+  enabled: false
+  # jmx_prometheus_javaagent version to download from Maven Central
+  version: "0.17.2"
+  noCheckCertificate: false
+
+  # Ports for the jmx prometheus agent to export metrics at
+  webBeanPort: 8000
+  ceBeanPort: 8001
+
+  config:
+    rules:
+      - pattern: ".*"
+
+prometheusMonitoring:
+  # Generate a Prometheus Pod Monitor (https://github.com/coreos/prometheus-operator)
+  #
+  podMonitor:
+    # Create PodMonitor Resource for Prometheus scraping
+    enabled: false
+
+plugins:
+  install: []
+  # Set to true to not validate the server's certificate to download plugin
+  noCheckCertificate: false
+
+## (DEPRECATED) The following value sets SONAR_WEB_JAVAOPTS (e.g., jvmOpts: "-Djava.net.preferIPv4Stack=true"). However, this is deprecated, please set SONAR_WEB_JAVAOPTS or sonar.web.javaOpts directly instead.
+jvmOpts: ""
+
+## (DEPRECATED) The following value sets SONAR_CE_JAVAOPTS. However, this is deprecated, please set SONAR_CE_JAVAOPTS or sonar.ce.javaOpts directly instead.
+jvmCeOpts: ""
+
+monitoringPasscode: "define_it"
+
+env:
+  - name: AZURE_CLIENT_ID
+    value: 6412d395-f292-4018-a7d3-5d5c5d540825
+
+# Set annotations for pods
+annotations: {}
+
+resources:
+  limits:
+    cpu: 800m
+    memory: 6144M
+    ephemeral-storage: 512000M
+  requests:
+    cpu: 400m
+    memory: 2048M
+    ephemeral-storage: 1536M
+
+persistence:
+  enabled: false
+  ## Set annotations on pvc
+  annotations: {}
+
+  storageClass:
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  uid: 1000
+  guid: 0
+  volumes: []
+  mounts: []
+
+emptyDir:
+  {}
+
+jdbcOverwrite:
+  enabled: true
+  # The JDBC url of the external DB
+  #jdbcUrl: "jdbc:sqlserver://sonarqube1980.database.windows.net:1433;database=sonar-db;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;"
+  jdbcUrl: jdbc:postgresql://sonarqube-db-pg16.postgres.database.azure.com:5432/sonarqube?sslmode=require
+  AzureIdentity: true
+  AwsIdentity: false
+  # The DB user that should be used for the JDBC connection
+  jdbcUsername: "sonarqube-identity"
+  jdbcPassword: "sonarPass"
+
+# Additional labels to add to the pods:
+# podLabels:
+#   key: value
+podLabels:
+  azure.workload.identity/use: "true"
+# (DEPRECATED) this field will be removed, as it needs to match the SonarQube image folder structure, considering we have one chart version per docker image version this field is not needed anymore.
+sonarqubeFolder: /opt/sonarqube
+
+tests:
+  image: ""
+  enabled: true
+  resources:
+    requests:
+      cpu: 500m
+      memory: 200M
+      ephemeral-storage: 100M
+    limits:
+      cpu: 500m
+      memory: 200M
+      ephemeral-storage: 1000M
+
+# For OpenShift set create=true to ensure service account is created.
+serviceAccount:
+  create: true
+  # name:
+  automountToken: false
+  ## Annotations for the Service Account
+  annotations: 
+    azure.workload.identity/client-id: 6412d395-f292-4018-a7d3-5d5c5d540825 #appid of  sonarqube-identity 
+    azure.workload.identity/tenant-id: 18b08011-0a66-4da0-97f0-cc3e9571c9e9
+
+extraConfig:
+  secrets: []
+  configmaps: []
+terminationGracePeriodSeconds: 60
