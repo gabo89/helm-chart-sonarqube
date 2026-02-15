@@ -153,7 +153,7 @@ how can i test this feature
 
 the fastest way can be to test locally using the docker image i have built 
 ```
-dockeragent89/local-sonarqube-app:26.2.5-managedidentity
+dockeragent89/local-sonarqube-app:26.2.7-managedidentity
  ```
 
 but companies will require some compliance  , it will better to clone and build the source code from my branch https://github.com/SonarSource/sonarqube/pull/3420 (my branch is gabo89:feature/adding-managed-identity-support)
