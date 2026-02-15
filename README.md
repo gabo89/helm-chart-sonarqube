@@ -51,7 +51,7 @@ the use case i have validated is to deploy the sonarqube in a statefulset as thi
 - adding azure_client_id env variable with client id 
 - that will lead the mutator to inject the access token in the pod 
 
-this is shown in the values.yaml at this root level , take it as reference 
+this is shown in the values-azure.yaml at this root level , take it as reference 
 
 ```
 env:
@@ -67,7 +67,6 @@ serviceAccount:
   create: true
   automountToken: false
   annotations: 
-    #the annotation for aws is like eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/YourK8sRole
     azure.workload.identity/client-id: 6412d395-f292-4018-a7d3-5d5c5d540825 <<added
     azure.workload.identity/tenant-id: 18b08011-0a66-4da0-97f0-cc3e9571c9e9 <<added
 ...
@@ -87,6 +86,63 @@ jdbcOverwrite:
   AwsPort: xxxx         #db server port
 
 ```
+
+for aws there is this values.yaml
+
+```
+extraVolumes: 
+  - name: aws-config
+    emptyDir: {}
+  - name: token
+    projected:
+      sources:
+        - serviceAccountToken:
+            audience: sts.amazonaws.com
+            expirationSeconds: 3600
+            path: token
+extraVolumeMounts:
+  - name: token
+    mountPath: /var/run/secrets/tokens
+    readOnly: true
+  - name: aws-config
+    mountPath: /.aws
+    readOnly: false
+...
+...
+env:
+  - name: AWS_ROLE_ARN
+    value: arn:aws:iam::557702683044:role/YourK8sRole
+  - name: AWS_WEB_IDENTITY_TOKEN_FILE
+    value: /var/run/secrets/tokens/token
+  - name: AWS_ROLE_SESSION_NAME
+    value: "k3s-cluster"
+  - name: AWS_REGION
+    value: "us-east-1"
+...
+...
+serviceAccount:
+  create: true
+  # name:
+  automountToken: false
+  ## Annotations for the Service Account
+  annotations: 
+    eks.amazonaws.com/role-arn: arn:aws:iam::557702683044:role/YourK8sRole
+...
+...
+jdbcOverwrite:
+  enabled: true
+  # The JDBC url of the external DB
+  jdbcUrl: jdbc:postgresql://database-1.cexygq82aznn.us-east-1.rds.amazonaws.com:5432/sonarqube?sslmode=require
+  AzureIdentity: false
+  AwsIdentity: true
+  # The DB user that should be used for the JDBC connection
+  jdbcUsername: "sonarqube-identity"
+  #for aws identity
+  AwsRegion: us-east-1
+  AwsHostname: database-1.cexygq82aznn.us-east-1.rds.amazonaws.com
+  AwsPort: 5432
+```
+
 
 this helm chart have a small modification in jdbc-config.yaml template  to alllow support for new input parameter for managed identity as part of pull request , that is the only change required  
 

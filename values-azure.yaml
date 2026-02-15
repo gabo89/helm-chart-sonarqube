@@ -24,7 +24,7 @@ community:
 
 image:
   repository: dockeragent89/local-sonarqube-app
-  tag: "26.2.5-managedidentity"
+  tag: "26.2.7-managedidentity"
   pullPolicy: IfNotPresent
   # If using a private repository, the imagePullSecrets to use
   # pullSecrets:

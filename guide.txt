@@ -1,4 +1,5 @@
 
 
-helm upgrade --install my-release --force --wait  --timeout 10m   -n sonarqube ./charts/sonarqube -f values.yaml  --namespace sonarqube --create-namespace
+helm upgrade --install my-release --force --wait  --timeout 10m   -n sonarqube ./charts/sonarqube -f values-azure.yaml  --namespace sonarqube --create-namespace
 
+helm upgrade --install my-release --force --wait  --timeout 10m   -n sonarqube ./charts/sonarqube -f values-aws.yaml  --namespace sonarqube --create-namespace
