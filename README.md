@@ -87,7 +87,7 @@ jdbcOverwrite:
 
 ```
 
-for aws there is this values.yaml
+for aws there is this values-aws.yaml
 
 ```
 extraVolumes: 
